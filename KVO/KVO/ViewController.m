@@ -29,8 +29,10 @@
 
 @implementation ViewController
 
+
 - (void)viewDidLoad {
     [super viewDidLoad];
+    
 }
 
 - (IBAction)base:(id)sender {
@@ -172,7 +174,7 @@
 //        self.name = @"new";
 //    });
     
-    
+
     Person *observe = [[Person alloc] init];
     observe.name = @"stone";
 

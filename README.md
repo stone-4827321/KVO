@@ -1,7 +1,9 @@
 # 概述
 
 - KVO 的全称 Key-Value Observing，俗称“**键值观察**”，可以用于观察某个对象属性值的改变。
+
 - KVO 是 Objective-C 对**观察者设计模式**的一种实现（另外一种是通知机制）。
+
 - KVO 对被观察对象无侵入性，不需要修改其内部代码即可实现观察。
 
 ## 属性观察
@@ -267,6 +269,7 @@
   ```
 
   - ` _isKVOA`：标识该类是一个 KVO 机制产生的类。
+
   - `class`：重写该方法以隐藏本类的存在。
 
   ```objective-c
@@ -279,6 +282,7 @@
   ```
 
   - `setAge:`：重写该方法以实现通知所有观察对象属性值的更改情况。
+  
     - `willChangeValueForKey:` 和 `didChangeValueForKey:` 方法。
 
   ```objective-c
@@ -311,6 +315,7 @@
       [self addObserver:observer forProperty:kvProperty options:options context:context];
   }
   ```
+
   - 将本次观察的信息存储在 `observationInfo` 对象中。
 
   ```objective-c
@@ -345,6 +350,7 @@
       [observationInfo release];
   }
   ```
+
   - 特别需要注意的是：获取对象的 `observationInfo` 属性时，是以对象的指针作为 key，从一个全局字典中获取。由此，**观察信息是存储在一个全局字典中，而不是存储在对象本身**。
 
   ```objective-c
@@ -452,6 +458,7 @@
   - 在 iOS11 及以上版本中，系统会自动在被观察对象的 `dealloc` 方法中移除仍存在的观察者信息。但需满足两个前提条件：
 
     - 使用系统的 KVO 机制，而不是自定义 KVO；
+    
     - 被观察者的 `observationInfo` 没有被重写。
 
     > <https://fpotter.org/posts/when-is-kvo-unregistration-automatic>
@@ -464,11 +471,22 @@
 
   - 产生原因：观察者释放后，`observationInfo` 中对其的引用指向了一个僵尸对象，向其发送消息触发了野指针异常。
 
+- 使用 `NSNotificationCenter` 添加通知时可能导致的闪退：
+
+  ```
+  Thread 1: EXC_BAD_ACCESS (code=2, address=0x7fff8df43da0)
+  ```
+
+  - 在 iOS9 以下系统时，使用 `addObserver:selector:name:object:` 添加通知后，当观察者释放时未移除通知，系统发送通知时会触发野指针异常。因为通知中心对观察者是 `unsafe_unretained` 引用，但 iOS9 及以上系统，通知中心对观察者是 `weak` 引用，固无需在观察者释放时移除通知。
+  
+  - 使用 `addObserverForName:object:queue:usingBlock:` 添加通知时，block 会引用其中包含的对象，如果对象释放后发送了通知，会触发野指针异常。
+
 # FBKVOController
 
 - `FBKVOController` 解决的问题及系统 KVO 存在的问题：
 
   - 可能会对同一个被观察的属性多次添加观察，导致收到多次回调；
+  
   - 当观察者对多个对象的不同属性进行观察，在回调方法中需要根据条件判断来响应不同属性的修改；
   - 上文提及的异常导致闪退。
 
@@ -494,13 +512,21 @@
 
 - 类说明：
   - `FBKVOController`：对外公开的类，提供了初始化，注册属性观察的方法。
+  
     - `@property (nullable, nonatomic, weak) id observer;`  —> 观察者
-    - `NSMapTable<id, NSMutableSet<_FBKVOInfo *> > *_objectInfosMap;  ` —> 被观察对象对应 `_FBKVOInfo` 对象的字典（去重，防止重复添加观察）
+    
+    - `NSMapTable<id, NSMutableSet<_FBKVOInfo *> > *_objectInfosMap;` —> 被观察对象对应 `_FBKVOInfo` 对象的字典（去重，防止重复添加观察）
+    
     - `dealloc` 方法中实现自动移除观察。
+    
   - `_FBKVOInfo`：内部类，没有任何业务逻辑，纯粹记录单次观察所需的参数信息，如观察属性，自定义回调或 `block` 等，内部实现 `isEqual:` 和 `hash` 方法用于字典去重。
+  
     - `__weak FBKVOController *_controller;`
+    
     - `NSString *_keyPath;` —> 观察属性
+    
   - `_FBKVOSharedController`：内部类，单例，真正的观察者，在收到回调后进行分发。
+  
     - `NSHashTable<_FBKVOInfo *> *_infos;`  —> 执行观察回调时获取 `_FBKVOInfo` 对象，进而获取相关参数进行转发
 
 - 流程说明：
@@ -549,7 +575,9 @@
   ```
 
   - 移除观察：
+  
     - 相对于系统方法，原来的被观察者还是被观察者，但被观察者还被 `FBKVOController` 对象持有，而 `FBKVOController` 对象释放时会移除观察，因此不会触发闪退。
+    
     - 相对于系统方法，原来的观察者并未真正添加观察，因此释放后不会触发闪退。
 
   ```objective-c

@@ -17,6 +17,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic) NSInteger tag;
 
+
+- (void)testNotification;
+
 @end
 
 @interface Non_Autonotifying_Person : NSObject
